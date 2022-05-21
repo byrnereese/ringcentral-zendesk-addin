@@ -1,0 +1,63 @@
+{
+    "name": "Zendesk Add-In",
+    "description" : "",
+    "repository": "",
+    "keywords": ["node", "express", "zendesk", "ringcentral add-in", "bot"],
+    "addons": [
+	"heroku-redis",
+	{
+            "plan": "heroku-postgresql"
+	}
+    ],
+    "env": {
+      "WEB_CONCURRENCY": {
+        "description": "Spin up multiple processes to handle jobs to take advantage of more CPU cores.",
+        "value": "2"
+      },
+      "RINGCENTRAL_SERVER": {
+        "description": "RingCentral platform server url",
+        "value": "https://platform.devtest.ringcentral.com"
+      },
+      "RINGCENTRAL_CHATBOT_DATABASE_CONNECTION_URI": {
+        "description": "Database uri. Leave this default for the 1st deployment and copy DATABASE_URL value to here right after.",
+        "value": "database_uri"
+      },
+      "RINGCENTRAL_CHATBOT_CLIENT_ID": {
+        "description": "Client Id for your bot, from App Settings on RingCentral Developer Portal",
+        "value": ""
+      },
+      "RINGCENTRAL_CHATBOT_CLIENT_SECRET": {
+        "description": "Client Secret for your bot, from App Settings on RingCentral Developer Portal",
+        "value": ""
+      },
+      "RINGCENTRAL_CHATBOT_SERVER": {
+        "description": "Bot server url. Leave this default for the 1st deployment and fill in right after",
+        "value": "bot_server"
+      },
+      "RINGCENTRAL_CHATBOT_ADMIN_USERNAME": {
+        "description": "Bot admin username",
+        "value": "admin"
+      },
+      "RINGCENTRAL_CHATBOT_ADMIN_PASSWORD": {
+        "description": "Bot admin password",
+        "value": "admin"
+      },
+      "ZD_CLIENT_ID": {
+        "description": "Zendesk Client Id",
+        "value": ""
+      },
+      "ZD_CLIENT_SECRET": {
+        "description": "Zendesk Client Secret",
+        "value": ""
+      },
+      "USE_HEROKU_POSTGRES": {
+        "description": "Sequelize config",
+        "value": "true"
+      },
+      "IM_SHARED_SECRET": {
+        "description": "(ignore it if your are not using Interactive Messages feature)RingCentral app interactive message shared secret",
+        "value": "",
+        "required": false
+      }
+    }
+  }
