@@ -99,7 +99,7 @@
                     "items": [
                         {
                             "type": "TextBlock",
-                            "text": "[Improve this add-in: report bugs and feature requests](https://docs.google.com/forms/d/e/1FAIpQLSfCwi9bUT0WJW3Ug8umbNyd8NnmAZiVIcOHwXto6B9syKTnjA/viewform?usp=pp_url&entry.492712114=Aha!+Add-in)",
+                            "text": "[Improve this add-in: report bugs and feature requests](https://docs.google.com/forms/d/e/1FAIpQLSfCwi9bUT0WJW3Ug8umbNyd8NnmAZiVIcOHwXto6B9syKTnjA/viewform?usp=pp_url&entry.492712114=Zendesk+Add-in)",
                             "weight": "Lighter",
                             "wrap": true,
                             "size": "Small",

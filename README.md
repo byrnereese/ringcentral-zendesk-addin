@@ -1,4 +1,4 @@
-# Jupiter Aha Add-In Bot
+# RingCentral Zendesk Add-In Bot
 
 <details>
   <summary>Deploy to AWS</summary>
@@ -64,9 +64,7 @@ Right after the deployment, make sure taking following steps to configure it:
 3. Find `OAuth Redirect URI` and fill it with `{BotSererUrl}/bot/oauth`
 4. Go to `Bot` tab and click `Add to RingCentral` (Note: bot server url might not be updated right away. Please wait for a few minutes if it fails.)
 
-Note: Aha server seems like using an internal polling mechanism which doesn't send the activity message right after the change. It feels like there's a 5min interval.
-
-## Try on RingCentral Jupiter
+## Try on RingCentral 
 
 Note: if bot's status is `In Sandbox`, then go to `https://app.devtest.ringcentral.com/`. Please also update `RINGCENTRAL_SERVER` in Heroku app env var config if switching between Sandbox and Production
 

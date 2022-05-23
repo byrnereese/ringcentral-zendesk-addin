@@ -137,7 +137,7 @@ const interactiveMessageHandler = async (req,res) => {
     const bot        = await Bot.findByPk(submitData.botId); 
     // TODO - we have the cardId, so let's replace cards as we go through flows
     
-    // If I am authing for the first time, I need to stash the aha domain and create
+    // If I am authing for the first time, I need to stash the zendesk domain and create
     // a botConfig object
     let cardData = {
         'botId': submitData.botId,
@@ -148,8 +148,8 @@ const interactiveMessageHandler = async (req,res) => {
     let botConfig = await BotConfig.findOne({
         where: { 'botId': submitData.botId, 'groupId': submitData.groupId }
     })
-    // if you have gotten this far, this means that the bot is fully setup, and an aha domain has
-    // been stored for the bot. That means we can make calls to Aha! So, load the token and proceed.
+    // if you have gotten this far, this means that the bot is fully setup, and an zendesk domain has
+    // been stored for the bot. That means we can make calls to Zendesk. So, load the token and proceed.
     switch (submitData.actionType) {
     case 'auth': {
 	if (!botConfig) {

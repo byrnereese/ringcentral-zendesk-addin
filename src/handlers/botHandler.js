@@ -181,31 +181,12 @@ const handleBotMessage = async event => {
 	return
     }
 
-    // all commands below require that the aha_domain field has been set. 
+    // all commands below require that the zendesk_domain field has been set. 
     if (!botConfig || (botConfig && (!botConfig.zendesk_domain || botConfig.zendesk_domain == ""))) {
-        await bot.sendMessage(group.id, { text: `The bot has been updated. You will need to reauthenticate. Please type the command "goodbye" and then "hello" to reauthenticate to Aha.` })
+        await bot.sendMessage(group.id, { text: `The bot has been updated. You will need to reauthenticate. Please type the command "goodbye" and then "hello" to reauthenticate to Zendesk.` })
 	return
     }
     
-    let token = botConfig ? botConfig.token : undefined
-    if (text.startsWith("subscribe")) {
-        // TODO - persist in database that this group is subscribed to a product id
-        if (token) {
-            let found = text.match(/subscribe (.*)$/)
-            let productCode = found[1]
-            let aha = getAhaClient(token, botConfig.aha_domain)
-            let server = process.env.RINGCENTRAL_CHATBOT_SERVER
-	    let hookQs = `groupId=${group.id}&botId=${bot.id}`
-	    let buff = new Buffer(hookQs)
-	    let buffe = buff.toString('base64')
-            let hookUrl = server + `/aha/webhook/${buffe}`
-            let resp = aha.product.get(productCode, function (err, data, response) {
-                bot.sendMessage(group.id, { text: `To receive updates in this Team from Aha:\n1. [Create a new Activity Webhook in Aha](https://${botConfig.aha_domain}.aha.io/settings/projects/${productCode}/integrations/new)\n2. In the Hook URL field, enter: ${hookUrl}\n3. Select the activities you would like to subscribe to.` })
-            });
-        } else {
-            await bot.sendMessage(group.id, { text: `It does not appear you have a current connection to Aha in this team.` })
-        }
-    }
 }
 
 exports.botHandler = botHandler;
