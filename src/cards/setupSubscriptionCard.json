@@ -1,0 +1,34 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Want to be notified of new tickets?",
+            "wrap": true,
+            "size": "ExtraLarge",
+            "weight": "Bolder"
+        },
+        {
+            "type": "TextBlock",
+            "text": "Hey, I have the ability to keep you informed of new tickets as they are created. Not everyone needs or wants this though. If you would like me to post a note to this chat whenever a ticket is created, click the button below. ",
+            "wrap": true
+        },
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.Submit",
+                    "title": "Subscribe to ticket notifications",
+                    "style": "positive",
+                    "data": {
+                        "actionType": "subscribe",
+                        "botId": "${botId}",
+                        "groupId": "${groupId}"
+                    }
+                }
+            ]
+        }
+    ]
+}

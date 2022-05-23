@@ -2,10 +2,24 @@ const { BotConfig }                 = require('../models/models')
 const { getZendeskClient }          = require('../lib/zendesk');
 const { Template }                  = require('adaptivecards-templating');
 
-const Bot                           = require('ringcentral-chatbot-core/dist/models/Bot').default;
-const authCardTemplate              = require('../adaptiveCards/authCard.json');
-const helloCardTemplate             = require('../adaptiveCards/helloCard.json');
-//const setupSubscriptionCardTemplate = require('../adaptiveCards/setupSubscriptionCard.json');
+const Bot                             = require('ringcentral-chatbot-core/dist/models/Bot').default;
+const authCardTemplate                = require('../cards/authCard.json');
+const helloCardTemplate               = require('../cards/helloCard.json');
+const subscriptionCardTemplate        = require('../cards/setupSubscriptionCard.json');
+const subscriptionCreatedCardTemplate = require('../cards/subscribedCard.json');
+
+const buildDialog = function( title, size, card ) {
+    let dialog = {
+	"type": "dialog",
+	"dialog": {
+	    "title": title,
+	    "size": size,
+	    "iconUrl": "https://cdn4.iconfinder.com/data/icons/logos-brands-5/24/zendesk-1024.png",
+	    "card": card
+	}
+    }
+    return dialog
+}
 
 const handleHelloAction = (cardData) => {
     const promise = new Promise( (resolve, reject) => {
@@ -18,7 +32,8 @@ const handleHelloAction = (cardData) => {
 
 const handleAuthAction = (config, cardData) => {
     const promise = new Promise( (resolve, reject) => {
-	cardData['loginUrl'] = `https://${config.zendesk_domain}.aha.io/oauth/authorize?client_id=${process.env.ZENDESK_CLIENT_ID}&redirect_uri=${process.env.RINGCENTRAL_CHATBOT_SERVER}/aha/oauth&response_type=code&state=${cardData.groupId}:${cardData.botId}:${cardData.userId}`
+	cardData['loginUrl'] = `https://${config.zendesk_domain}.zendesk.com/oauth/authorizations/new?client_id=${process.env.ZENDESK_CLIENT_ID}&redirect_uri=${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/oauth&response_type=code&state=${cardData.groupId}:${cardData.botId}:${cardData.userId}&scope=read+tickets%3Awrite+webhooks%3Awrite`
+	console.log(`OAuth login URL: ${cardData['loginUrl']}`)
 	const template = new Template(authCardTemplate);
 	const card = template.expand({ $root: cardData });
 	resolve( card )
@@ -39,34 +54,80 @@ async function updateOrCreate (model, where, newItem) {
     return {item, created: false};
 }
 
-/*
-const handleSetupSubscriptionAction = (config, submitData, cardData) => {
+const handleCreateSubscriptionAction = (config, submitData, cardData) => {
     const promise = new Promise( (resolve, reject) => {
-	console.log(`MESSAGING: facilitating subscription process for ${submitData.product}`)
-	let hookQs = `groupId=${submitData.groupId}&botId=${submitData.botId}`
-	let buff = new Buffer(hookQs)
-	let buffe = buff.toString('base64')
-        let hookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/aha/webhook/${buffe}`
-	cardData['hookUrl'] = hookUrl
-	const template = new Template(subscriptionCardTemplate);
+	console.log(`MESSAGING: creating subscription for new tickets`)
+	let hookQs     = `groupId=${submitData.groupId}&botId=${submitData.botId}`
+	let buff       = new Buffer(hookQs)
+	let buffe      = buff.toString('base64')
+        let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${buffe}`
+	cardData['webhookUrl'] = webhookUrl
+
+	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
+	
+	zendesk.webhooks.create({
+	    "webhook":{
+		"name": `Zendesk Add-in subscription for group ${submitData.groupId} and bot ${submitData.botId}`,
+		"endpoint": webhookUrl,
+		"http_method":"POST",
+		"request_format":"json",
+		"status":"active",
+		"subscriptions":[
+                    "conditional_ticket_events"
+		]
+//		"authentication":{
+//                    "type":"bearer_token",
+//                    "data":{
+//			"token":"{token}",
+//                    },
+//                    "add_position":"header"
+//              }
+            }
+	},function (err, req, result) {
+	    if (err) {
+		console.log(`Could not create webhook: ${err}`);
+		return;
+	    } else {
+		// webhook created, now create trigger
+		let webhook_id = result.id
+		console.log("Zendesk webhook created. id: ", webhook_id)
+		let trigger = {
+		    "trigger": {
+			"title": "Send webhook on ticket creation",
+			//"active": true,
+			//"category_id": "6103147421723",
+			"actions": [
+			    {
+				"field": "notification_webhook",
+				"value": [ webhook_id,"{ \"ticket_id\": \"{{ticket.id}}\"}" ]
+			    }
+			],
+			"conditions": {
+			    "all": [ {"field": "update_type","operator": "is","value": "Create"} ],
+			    "any": []
+			},
+			"description": "This trigger was created by the RingCentral Zendesk Add-in and causes a webhook to be transmitted when a new ticket is crated."
+		    }
+		}
+		zendesk.triggers.create( { "trigger": trigger }, function (err, req, result) {
+		    if (err) {
+			console.log(`Could not create trigger for webhook: ${err}`);
+			console.log("Trigger: ", JSON.stringify( trigger ) )
+			return;
+		    } else {
+			// trigger created
+			console.log("Zendesk trigger created.")
+			//console.log(JSON.stringify(result[0], null, 2, true));
+		    }
+		});
+	    }
+	});
+
+	const template = new Template(subscriptionCreatedCardTemplate);
 	const card = template.expand({ $root: cardData });
 	resolve( card )
     })
     return promise
-}
-*/
-
-const buildDialog = function( title, size, card ) {
-    let dialog = {
-	"type": "dialog",
-	"dialog": {
-	    "title": title,
-	    "size": size,
-	    "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/2048px-Instagram_icon.png",
-	    "card": card
-	}
-    }
-    return dialog
 }
 
 const interactiveMessageHandler = async (req,res) => {
@@ -141,15 +202,16 @@ const interactiveMessageHandler = async (req,res) => {
         }
 	break
     }
-    /*
-    case 'setup_subscription': {
-	handleSetupSubscriptionAction( botConfig, submitData, cardData ).then( card => {
+    case 'subscribe': {
+	handleCreateSubscriptionAction( botConfig, submitData, cardData ).then( card => {
 	    console.log("DEBUG: posting card to group "+submitData.groupId+":", card)
-	    bot.sendAdaptiveCard( submitData.groupId, card);
+	    let dialog = buildDialog('Subscription created','Small', card)
+	    res.setHeader('Content-Type', 'application/json');
+	    res.end(JSON.stringify(dialog))
+	    //bot.sendAdaptiveCard( submitData.groupId, card);
 	})
 	break
-	}
-    */
+    }
     default: {
 	console.log(`ERROR: unknown bot action: ${submitData.actionType}`)
     }

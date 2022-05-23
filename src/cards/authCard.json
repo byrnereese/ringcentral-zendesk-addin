@@ -5,14 +5,14 @@
     "body": [
         {
             "type": "TextBlock",
-            "text": "Let's login to Aha!",
+            "text": "Let's login to Zendesk",
             "wrap": true,
             "size": "ExtraLarge",
             "weight": "Bolder"
         },
         {
             "type": "TextBlock",
-            "text": "Thank you for telling me your Aha! domain. Let's do this.",
+            "text": "Thank you for telling me your Zendesk domain. Let's do this.",
             "wrap": true
         },
         {
@@ -20,7 +20,7 @@
             "actions": [
                 {
                     "type": "Action.OpenUrl",
-                    "title": "Connect to Aha!",
+                    "title": "Connect to Zendesk",
                     "url": "${loginUrl}",
                     "style": "positive"
                 }

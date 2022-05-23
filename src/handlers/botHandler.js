@@ -4,12 +4,12 @@ const { continueSession }         = require('pg/lib/sasl');
 const { Template }                = require('adaptivecards-templating');
 const gravatar                    = require('gravatar');
 const Bot                         = require('ringcentral-chatbot-core/dist/models/Bot');
-const helloCardTemplate           = require('../adaptiveCards/helloCard.json');
-const helpCardTemplate            = require('../adaptiveCards/helpCard.json');
-const ticketCardTemplate          = require('../adaptiveCards/ticketCard.json');
+const helloCardTemplate           = require('../cards/helloCard.json');
+const helpCardTemplate            = require('../cards/helpCard.json');
+const ticketCardTemplate          = require('../cards/ticketCard.json');
 
 const botHandler = async event => {
-    console.log(event.type, 'event')
+    console.log(`Received ${event.type} event`)
     switch (event.type) {
     case 'Message4Bot':
         await handleBotMessage(event)
@@ -24,7 +24,7 @@ const botHandler = async event => {
         await handleBotDelete(event)
         break
     default:
-	console.log('Unknown event type: ' + event.type)
+	//console.log('Unknown event type: ' + event.type)
         break
     }
 }
@@ -65,16 +65,22 @@ const handleBotJoiningGroup = async event => {
 const unfurl = async ( botConfig, obj_type, obj_id ) => {
     const promise = new Promise( (resolve, reject) => {
 	let token = botConfig ? botConfig.token : undefined
-	let zendesk = getZendeskClient(token, botConfig.zendesk_domain)
+	let zendesk = getZendeskClient(botConfig.zendesk_domain, token)
 	const cardData = {
 	    'botId': botConfig.botId,
 	    'groupId': botConfig.groupId
 	};
 	switch (obj_type) {
-	case 'ideas/ideas': {
+	case 'agent/tickets': {
 	    loadTicket( zendesk, obj_id ).then( ticket => {
+		console.log("Found ticket: ", ticket)
+		ticket.created_at_fmt = new Date( ticket.created_at ).toDateString()
+		cardData['zendeskUrl'] = `https://${botConfig.zendesk_domain}.zendesk.com/${obj_type}/${obj_id}` 
+		cardData['ticket'] = ticket
+		cardData['card'] = {
+		    "title": "A link to Zendesk was shared"
+		}
 		/*
-		console.log("found idea: ", idea)
 		idea.idea.created_at_fmt = new Date( idea.idea.created_at ).toDateString()
 		if (idea.idea.created_by_user) {
 		    cardData['created_by'] = idea.idea.created_by_user
@@ -110,8 +116,7 @@ const handleMessage = async event => {
         where: { 'botId': bot.id, 'groupId': group.id }
     })
     let urls = getZendeskUrls( text )
-    for (url of aha_urls) {
-	// looking for a bot config 
+    for (url of urls) {
 	let domain    = url[1]
 	let obj_type  = url[2]
 	let obj_id    = url[3]

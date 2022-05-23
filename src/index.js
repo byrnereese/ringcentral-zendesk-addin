@@ -6,7 +6,7 @@ const crypto        = require('crypto');
 
 const { BotConfig }    = require('./models/botConfig');
 const { botHandler }   = require('./handlers/botHandler');
-const { zdOAuthHandler, zdWebhookHandler } = require('./handlers/zendeskHandler');
+const { zendeskOAuthHandler, zendeskWebhookHandler } = require('./handlers/zendeskHandler');
 const { interactiveMessageHandler } = require('./handlers/interactiveMessageHandler');
 
 let PORT      = process.env.PORT || '5000';
@@ -37,9 +37,9 @@ setInterval(() => {
     axios.put(`${process.env.RINGCENTRAL_CHATBOT_SERVER}/ringcentral/refresh-tokens`)
 }, 86400000)
 
-app.get('/aha/oauth', async (req, res) => {
+app.get('/zendesk/oauth', async (req, res) => {
     try {
-        await zdOAuthHandler(req, res);
+        await zendeskOAuthHandler(req, res);
     }
     catch (e) {
         console.error(e);
@@ -50,7 +50,7 @@ app.get('/aha/oauth', async (req, res) => {
 
 app.post('/zendesk/webhook/:webhookStr', async (req, res) => {
     try {
-        await zdWebhookHandler(req, res);
+        await zendeskWebhookHandler(req, res);
     }
     catch (e) {
         console.error(e);

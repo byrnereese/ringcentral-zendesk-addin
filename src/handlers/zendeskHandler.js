@@ -4,25 +4,23 @@ const { getZendeskClient, getZendeskOAuth, loadTicket }
 const Bot                           = require('ringcentral-chatbot-core/dist/models/Bot').default;
 const querystring                   = require('querystring');
 const { Template }                  = require('adaptivecards-templating');
-const setupSubscriptionCardTemplate = require('../adaptiveCards/setupSubscriptionCard.json');
+const setupSubscriptionCardTemplate = require('../cards/setupSubscriptionCard.json');
 const { Op }                        = require("sequelize");
 
 const zendeskOAuthHandler = async (req, res) => {
     const { state } = req.query
     const [groupId, botId, userId] = state.split(':')
     console.log(`Requesting installation of bot (id:${botId}) into chat (id:${groupId}) by user (id:${userId})`)
-    const bot = await Bot.findByPk(botId)
-    // Bearer token in hand. Now let's stash it.
-    const query = { groupId, botId }
-    const botConfig = await BotConfig.findOne({ where: query })
-    console.log(`Zendesk domain: ${botConfig.zendesk_domain}`)
+    const bot          = await Bot.findByPk(botId)
+    const query        = { groupId, botId }
+    const botConfig    = await BotConfig.findOne({ where: query })
     const zendeskOAuth = getZendeskOAuth( botConfig.zendesk_domain )
-    const tokenUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}${req.url}`;
-    console.log(`Token URL: ${tokenUrl}`);
-    const tokenResponse = await zendeskOAuth.code.getToken(tokenUrl);
+    const tokenUrl     = `${process.env.RINGCENTRAL_CHATBOT_SERVER}${req.url}`;
+    //console.log(`Zendesk domain: ${botConfig.zendesk_domain}`)
+    //console.log(`Token URL:      ${tokenUrl}`);
+    const tokenResponse = await zendeskOAuth.code.getToken( tokenUrl );
     const token = tokenResponse.data.access_token;
-    console.log("Successfully obtained OAuth token")
-    
+    console.log("Successfully obtained OAuth token: " + token)
     if (botConfig) {
         await botConfig.update({ 'token': token })
     } else {

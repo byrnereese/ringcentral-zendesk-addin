@@ -1,0 +1,113 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "size": "Small",
+            "weight": "Bolder",
+            "text": "${card.title}"
+        },
+        {
+            "type": "TextBlock",
+            "text": "${ticket.subject}",
+            "wrap": true,
+            "size": "Large",
+            "weight": "Bolder"
+        },
+        {
+            "type": "TextBlock",
+            "text": "${ticket.description}",
+            "maxLines": 20,
+            "wrap": true
+        },
+        {
+            "type": "FactSet",
+            "facts": [
+                {
+                    "title": "Created by",
+                    "value": "${ticket.requestor.name}"
+                },
+                {
+                    "title": "Created on",
+                    "value": "${ticket.created_at_fmt}"
+                },
+                {
+                    "title": "Status",
+                    "value": "${ticket.status}"
+                }
+            ]
+        },        
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.OpenUrl",
+                    "title": "Open in Zendesk",
+                    "url": "${zendeskUrl}"
+                },
+                {
+                    "type": "Action.ShowCard",
+                    "title": "Add internal note",
+                    "card": {
+                        "type": "AdaptiveCard",
+                        "body": [
+                            {
+                                "id": "comment_text",
+                                "type": "Input.Text",
+                                "placeholder": "Enter your note",
+                                "isMultiline": true,
+                                "label": "Note text"
+                            }
+                        ],
+                        "actions": [
+                            {
+                                "type": "Action.Submit",
+                                "title": "Post note",
+                                "data": {
+                                    "actionType": "post_note",
+                                    "ticketId": "${ticketId}",
+                                    "botId": "${botId}",
+                                    "groupId": "${groupId}"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "ColumnSet",
+            "columns": [
+                {
+                    "type": "Column",
+                    "width": "auto",
+                    "items": [
+                        {
+                            "type": "Image",
+                            "url": "https://github.com/ringcentral/github-notification-app/blob/main/icons/feedback-32.png?raw=true",
+                            "size": "Small",
+                            "style": "Person",
+                            "width": "16px"
+                        }
+                    ]
+                },
+                {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                        {
+                            "type": "TextBlock",
+                            "text": "[Improve this add-in: report bugs and feature requests](https://docs.google.com/forms/d/e/1FAIpQLSfCwi9bUT0WJW3Ug8umbNyd8NnmAZiVIcOHwXto6B9syKTnjA/viewform?usp=pp_url&entry.492712114=Aha!+Add-in)",
+                            "weight": "Lighter",
+                            "wrap": true,
+                            "size": "Small",
+                            "spacing": "None"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
