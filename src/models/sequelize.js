@@ -7,6 +7,7 @@ if (process.env.USE_HEROKU_POSTGRES) {
   {
     dialect: 'postgres',
     protocol: 'postgres',
+    logging: (process.env.SEQUELIZE_LOGGING_ENABLED ? console.log : false),
     dialectOptions: {
       ssl: {
         rejectUnauthorized: false

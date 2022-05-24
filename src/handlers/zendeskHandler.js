@@ -1,10 +1,12 @@
 const { BotConfig }                 = require('../models/models')
+const { EventSubscriptions }        = require('../models/models')
 const { getZendeskClient, getZendeskOAuth, loadTicket }
                                     = require('../lib/zendesk')
 const Bot                           = require('ringcentral-chatbot-core/dist/models/Bot').default;
 const querystring                   = require('querystring');
 const { Template }                  = require('adaptivecards-templating');
 const setupSubscriptionCardTemplate = require('../cards/setupSubscriptionCard.json');
+const ticketCardTemplate            = require('../cards/ticketCard.json');
 const { Op }                        = require("sequelize");
 
 const zendeskOAuthHandler = async (req, res) => {
@@ -37,22 +39,56 @@ const zendeskOAuthHandler = async (req, res) => {
 }
 
 const zendeskWebhookHandler = async (req, res) => {
-    let { webhookStr } = req.params;
-    console.log('The encoded string is: ' + webhookStr);
-    let buff = new Buffer(webhookStr, 'base64');
-    let qs = buff.toString('ascii');
-    const { groupId, botId } = querystring.parse(qs)
-    if (typeof groupId === "undefined" || typeof botId === "undefined") {
-        console.log("Received a webhook but the group and bot IDs were empty. Something is wrong.")
+    let { botId } = req.params;
+    if (typeof botId === "undefined") {
+        console.log("Received a webhook but the bot ID is empty. Something is wrong.")
         res.send('<!doctype><html><body>OK</body></html>')
         return
     }
-    console.log(`Received webhook from Zendesk (group: ${groupId}, bot: ${botId})...`)
-    console.log( "Webhook content:", req.body )
+    console.log(`Received webhook for bot ${botId} and ticket ${req.body.ticket_id}`)
+
+    /*
+      idea.idea.created_at_fmt = new Date( idea.idea.created_at ).toDateString()
+      if (idea.idea.created_by_user) {
+      cardData['created_by'] = idea.idea.created_by_user
+      } if (idea.idea.created_by_portal_user) {
+      cardData['created_by'] = idea.idea.created_by_portal_user
+      } else if (idea.idea.created_by_idea_user) {
+      cardData['created_by'] = idea.idea.created_by_idea_user
+      }
+      if (!cardData['created_by']['avatar_url']) {
+      cardData['created_by']['avatar_url'] = gravatar.url(cardData['created_by'].email);
+      }
+      cardData['idea'] = idea.idea
+    */
     const bot = await Bot.findByPk(botId)
-    const botConfig = await BotConfig.findOne({ where: { 'botId': botId, 'groupId': groupId } })
+    const template = new Template(ticketCardTemplate);
+    let cardData = {}
     if (bot) {
-    
+	console.log(`Looking up subscribers for the event (bot: ${botId})`)
+	const subs = await EventSubscriptions.findAll({ where: { 'botId': botId, 'eventType': 'ticket' } })
+	let ticket = undefined
+	for (let sub of subs) {
+	    console.log(`Delivering notification to group: ${sub.groupId}`)
+	    const botConfig = await BotConfig.findOne({ where: { 'botId': botId, 'groupId': sub.groupId } })
+	    let token = botConfig ? botConfig.token : undefined
+	    let zendesk = getZendeskClient(botConfig.zendesk_domain, token)
+	    if (!ticket) {
+		ticket = await loadTicket( zendesk, req.body.ticket_id )
+		console.log("Found ticket: ", ticket)
+		ticket.created_at_fmt = new Date( ticket.created_at ).toDateString()
+		cardData['zendeskUrl'] = `https://${botConfig.zendesk_domain}.zendesk.com/agent/tickets/${req.body.ticket_id}` 
+		cardData['ticket'] = ticket
+		cardData['card'] = {
+		    "title": "A new ticket was created"
+		}
+	    }
+	    cardData['botId']   = botConfig.botId
+	    cardData['groupId'] = botConfig.groupId
+	    const card = template.expand({ $root: cardData });
+	    console.log(`DEBUG: posting new ticket card to group ${sub.groupId}`)
+	    bot.sendAdaptiveCard( sub.groupId, card);
+	}
     }
 }
 

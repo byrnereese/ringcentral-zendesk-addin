@@ -1,13 +1,12 @@
 const { extendApp } = require('ringcentral-chatbot-core');
 const express       = require('express');
 const axios         = require('axios');
-let   Queue         = require('bull');
 const crypto        = require('crypto');
 
-const { BotConfig }    = require('./models/botConfig');
-const { botHandler }   = require('./handlers/botHandler');
+const { BotConfig, EventSubscriptions }              = require('./models/models.js');
+const { botHandler }                                 = require('./handlers/botHandler');
 const { zendeskOAuthHandler, zendeskWebhookHandler } = require('./handlers/zendeskHandler');
-const { interactiveMessageHandler } = require('./handlers/interactiveMessageHandler');
+const { interactiveMessageHandler }                  = require('./handlers/interactiveMessageHandler');
 
 let PORT      = process.env.PORT || '5000';
 
@@ -16,7 +15,8 @@ const botOptions = {
     adminRoute: '/admin', // optional
     botRoute: '/bot', // optional
     models: { // optional
-        BotConfig
+        BotConfig,
+        EventSubscriptions
     }
 }
 
@@ -48,7 +48,7 @@ app.get('/zendesk/oauth', async (req, res) => {
     res.send('<!doctype><html><body><script>close()</script></body></html>')
 })
 
-app.post('/zendesk/webhook/:webhookStr', async (req, res) => {
+app.post('/zendesk/webhook/:botId', async (req, res) => {
     try {
         await zendeskWebhookHandler(req, res);
     }

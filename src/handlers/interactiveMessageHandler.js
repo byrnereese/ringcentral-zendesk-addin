@@ -1,12 +1,12 @@
-const { BotConfig }                 = require('../models/models')
-const { getZendeskClient }          = require('../lib/zendesk');
-const { Template }                  = require('adaptivecards-templating');
-
-const Bot                             = require('ringcentral-chatbot-core/dist/models/Bot').default;
-const authCardTemplate                = require('../cards/authCard.json');
-const helloCardTemplate               = require('../cards/helloCard.json');
-const subscriptionCardTemplate        = require('../cards/setupSubscriptionCard.json');
-const subscriptionCreatedCardTemplate = require('../cards/subscribedCard.json');
+const { BotConfig, EventSubscriptions } = require('../models/models')
+const { getZendeskClient }              = require('../lib/zendesk');
+const { Template }                      = require('adaptivecards-templating');
+const Bot                               = require('ringcentral-chatbot-core/dist/models/Bot').default;
+const authCardTemplate                  = require('../cards/authCard.json');
+const helloCardTemplate                 = require('../cards/helloCard.json');
+const subscriptionCardTemplate          = require('../cards/setupSubscriptionCard.json');
+const subscriptionExistsCardTemplate    = require('../cards/subscriptionExistsCard.json');
+const subscriptionCreatedCardTemplate   = require('../cards/subscribedCard.json');
 
 const buildDialog = function( title, size, card ) {
     let dialog = {
@@ -32,7 +32,7 @@ const handleHelloAction = (cardData) => {
 
 const handleAuthAction = (config, cardData) => {
     const promise = new Promise( (resolve, reject) => {
-	cardData['loginUrl'] = `https://${config.zendesk_domain}.zendesk.com/oauth/authorizations/new?client_id=${process.env.ZENDESK_CLIENT_ID}&redirect_uri=${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/oauth&response_type=code&state=${cardData.groupId}:${cardData.botId}:${cardData.userId}&scope=read+tickets%3Awrite+webhooks%3Awrite`
+	cardData['loginUrl'] = `https://${config.zendesk_domain}.zendesk.com/oauth/authorizations/new?client_id=${process.env.ZENDESK_CLIENT_ID}&redirect_uri=${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/oauth&response_type=code&state=${cardData.groupId}:${cardData.botId}:${cardData.userId}&scope=read+tickets%3Awrite+webhooks%3Awrite+triggers%3Awrite`
 	console.log(`OAuth login URL: ${cardData['loginUrl']}`)
 	const template = new Template(authCardTemplate);
 	const card = template.expand({ $root: cardData });
@@ -56,76 +56,93 @@ async function updateOrCreate (model, where, newItem) {
 
 const handleCreateSubscriptionAction = (config, submitData, cardData) => {
     const promise = new Promise( (resolve, reject) => {
+	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
+
 	console.log(`MESSAGING: creating subscription for new tickets`)
-	let hookQs     = `groupId=${submitData.groupId}&botId=${submitData.botId}`
-	let buff       = new Buffer(hookQs)
-	let buffe      = buff.toString('base64')
-        let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${buffe}`
+	//let hookQs     = `groupId=${submitData.groupId}&botId=${submitData.botId}`
+	//let buff       = new Buffer(hookQs)
+	//let buffe      = buff.toString('base64')
+        //let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${buffe}`
+        let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${submitData.botId}`
 	cardData['webhookUrl'] = webhookUrl
 
-	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
-	
-	zendesk.webhooks.create({
-	    "webhook":{
-		"name": `Zendesk Add-in subscription for group ${submitData.groupId} and bot ${submitData.botId}`,
-		"endpoint": webhookUrl,
-		"http_method":"POST",
-		"request_format":"json",
-		"status":"active",
-		"subscriptions":[
-                    "conditional_ticket_events"
-		]
-//		"authentication":{
-//                    "type":"bearer_token",
-//                    "data":{
-//			"token":"{token}",
-//                    },
-//                    "add_position":"header"
-//              }
-            }
-	},function (err, req, result) {
-	    if (err) {
-		console.log(`Could not create webhook: ${err}`);
-		return;
-	    } else {
+	if (config.zendesk_webhook_id) {
+	    console.log('Webhook has already been created, so there is no need to create one.')
+	    const template = new Template(subscriptionExistsCardTemplate);
+	    const card = template.expand({ $root: cardData });
+	    resolve( card )
+	} else {
+	    console.log('Creating Zendesk webhook for the first time.');
+	    zendesk.webhooks.create({
+		"webhook":{
+		    "name": `Zendesk Add-in subscription for RingCentral bot ${submitData.botId}`,
+		    "endpoint": webhookUrl,
+		    "http_method":"POST",
+		    "request_format":"json",
+		    "status":"active",
+		    "subscriptions":["conditional_ticket_events"]
+		}
+	    }).then( webhook => {
 		// webhook created, now create trigger
-		let webhook_id = result.id
-		console.log("Zendesk webhook created. id: ", webhook_id)
-		let trigger = {
+		console.log(`Zendesk webhook created. id: ${webhook.id}`)
+		config.zendesk_webhook_id = webhook.id.toString()
+		return zendesk.triggers.create({
 		    "trigger": {
-			"title": "Send webhook on ticket creation",
-			//"active": true,
-			//"category_id": "6103147421723",
+			"title": "Send webhook to RingCentral bot",
 			"actions": [
 			    {
 				"field": "notification_webhook",
-				"value": [ webhook_id,"{ \"ticket_id\": \"{{ticket.id}}\"}" ]
+				"value": [ webhook.id,"{ \"ticket_id\": \"{{ticket.id}}\", \"type\": \"ticket\" }" ]
 			    }
 			],
 			"conditions": {
 			    "all": [ {"field": "update_type","operator": "is","value": "Create"} ],
 			    "any": []
 			},
-			"description": "This trigger was created by the RingCentral Zendesk Add-in and causes a webhook to be transmitted when a new ticket is crated."
+			"description": "This trigger was created by the RingCentral Zendesk Add-in and causes a webhook to be transmitted when a new ticket is created."
 		    }
+		})
+	    }).then( trigger => {
+		// trigger created
+		console.log(`Zendesk trigger created: ${trigger.id}`)
+		config.zendesk_trigger_id = trigger.id.toString()
+		let where = {
+		    'botId': submitData.botId, 'groupId': submitData.groupId, 'eventType': 'ticket'
 		}
-		zendesk.triggers.create( { "trigger": trigger }, function (err, req, result) {
-		    if (err) {
-			console.log(`Could not create trigger for webhook: ${err}`);
-			console.log("Trigger: ", JSON.stringify( trigger ) )
-			return;
-		    } else {
-			// trigger created
-			console.log("Zendesk trigger created.")
-			//console.log(JSON.stringify(result[0], null, 2, true));
-		    }
-		});
-	    }
-	});
-
-	const template = new Template(subscriptionCreatedCardTemplate);
-	const card = template.expand({ $root: cardData });
-	resolve( card )
+		console.log('Saving event subscription:', where)
+		return EventSubscriptions.findOne({ "where": where })
+	    }).then( subscription => {
+		if (!subscription) {
+		    subscription = EventSubscriptions.create( where )
+		} else {
+		    // TODO post differentiated message for a subscription that has already been made
+		}
+		// for now, everyone will be told a subscription has been created, even if one already exists
+		config.save()
+		const template = new Template(subscriptionCreatedCardTemplate);
+		const card = template.expand({ $root: cardData });
+		resolve( card )
+	    }).catch( err => {
+		// TODO delete webhook
+		console.log(`Could not create trigger for webhook: ${err}`);
+		if (config.zendesk_webhook_id) {
+		    console.log(`Rolling back webhook: ${config.zendesk_webhook_id}`)
+		    zendesk.webhooks.delete( config.zendesk_webhook_id, function (err, req, result) {
+			console.log(`Garbage collected webhook: ${config.zendesk_webhook_id}`)
+		    })
+		    config.zendesk_webhook_id = undefined
+		}
+		if (config.zendesk_trigger_id) {
+		    console.log(`Rolling back trigger: ${config.zendesk_trigger_id}`)
+		    zendesk.triggers.delete( config.zendesk_trigger_id, function (err, req, result) {
+			console.log(`Garbage collected trigger: ${config.zendesk_trigger_id}`)
+		    })
+		    config.zendesk_trigger_id = undefined
+		}
+		config.save()
+		reject("Failed to create subscription (zendesk webhook and trigger):", err)
+	    })
+	}
     })
     return promise
 }
@@ -203,13 +220,16 @@ const interactiveMessageHandler = async (req,res) => {
 	break
     }
     case 'subscribe': {
-	handleCreateSubscriptionAction( botConfig, submitData, cardData ).then( card => {
-	    console.log("DEBUG: posting card to group "+submitData.groupId+":", card)
-	    let dialog = buildDialog('Subscription created','Small', card)
+	let card = await handleCreateSubscriptionAction( botConfig, submitData, cardData )
+	if (card) {
+	    console.log(`DEBUG: subscription created, posting card to group ${submitData.groupId}:`, card)
+	    let dialog = buildDialog('Setting up Zendesk','Small', card)
+	    res.status(200);
 	    res.setHeader('Content-Type', 'application/json');
 	    res.end(JSON.stringify(dialog))
-	    //bot.sendAdaptiveCard( submitData.groupId, card);
-	})
+	} else {
+	    console.log("Returned from handleCreateSubscription with no card. Do nothing.")
+	}
 	break
     }
     default: {

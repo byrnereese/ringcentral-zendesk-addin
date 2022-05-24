@@ -40,6 +40,11 @@ const handleBotDelete = async event => {
     const { type, message } = event
     let botId = message.body.extensionId
     console.log("DEBUG: cleaning up for bot:", botId)
+
+    // TODO - load zendesk client
+    // TODO - delete webhook
+    // TODO - delete trigger
+    
     await BotConfig.destroy({
         where: { 'botId': message.body.extensionId }
     })

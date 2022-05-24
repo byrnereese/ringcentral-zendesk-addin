@@ -21,7 +21,7 @@ const getZendeskOAuth = function ( domain ) {
 	redirectUri:      `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/oauth`,
 	accessTokenUri:   `https://${domain}.zendesk.com/oauth/tokens`,
 	authorizationUri: `https://${domain}.zendesk.com/oauth/authorizations/new?client_id=${process.env.ZENDESK_CLIENT_ID}&redirect_uri=${process.env.RINGCENTRAL_CHATBOT_SERVER}/bot/oauth&response_type=code`,
-	scopes: ['read','tickets:write','webhooks:write']
+	scopes: ['read','tickets:write','webhooks:write','triggers:write']
     });
     return zendeskAuth
 }
