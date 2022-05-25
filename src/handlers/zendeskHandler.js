@@ -14,7 +14,7 @@ const zendeskOAuthHandler = async (req, res) => {
     const [groupId, botId, userId] = state.split(':')
     console.log(`Requesting installation of bot (id:${botId}) into chat (id:${groupId}) by user (id:${userId})`)
     const bot          = await Bot.findByPk(botId)
-    const query        = { groupId, botId }
+    const query        = { botId }
     const botConfig    = await BotConfig.findOne({ where: query })
     const zendeskOAuth = getZendeskOAuth( botConfig.zendesk_domain )
     const tokenUrl     = `${process.env.RINGCENTRAL_CHATBOT_SERVER}${req.url}`;
@@ -70,7 +70,7 @@ const zendeskWebhookHandler = async (req, res) => {
 	let ticket = undefined
 	for (let sub of subs) {
 	    console.log(`Delivering notification to group: ${sub.groupId}`)
-	    const botConfig = await BotConfig.findOne({ where: { 'botId': botId, 'groupId': sub.groupId } })
+	    const botConfig = await BotConfig.findOne({ where: { 'botId': botId } })
 	    let token = botConfig ? botConfig.token : undefined
 	    let zendesk = getZendeskClient(botConfig.zendesk_domain, token)
 	    if (!ticket) {
@@ -79,12 +79,13 @@ const zendeskWebhookHandler = async (req, res) => {
 		ticket.created_at_fmt = new Date( ticket.created_at ).toDateString()
 		cardData['zendeskUrl'] = `https://${botConfig.zendesk_domain}.zendesk.com/agent/tickets/${req.body.ticket_id}` 
 		cardData['ticket'] = ticket
+		cardData['ticketId'] = ticket.id
 		cardData['card'] = {
 		    "title": "A new ticket was created"
 		}
 	    }
 	    cardData['botId']   = botConfig.botId
-	    cardData['groupId'] = botConfig.groupId
+	    cardData['groupId'] = sub.groupId
 	    const card = template.expand({ $root: cardData });
 	    console.log(`DEBUG: posting new ticket card to group ${sub.groupId}`)
 	    bot.sendAdaptiveCard( sub.groupId, card);

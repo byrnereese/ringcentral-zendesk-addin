@@ -6,7 +6,9 @@ const authCardTemplate                  = require('../cards/authCard.json');
 const helloCardTemplate                 = require('../cards/helloCard.json');
 const subscriptionCardTemplate          = require('../cards/setupSubscriptionCard.json');
 const subscriptionExistsCardTemplate    = require('../cards/subscriptionExistsCard.json');
+const subscriptionDeletedCardTemplate   = require('../cards/subscriptionDeletedCard.json');
 const subscriptionCreatedCardTemplate   = require('../cards/subscribedCard.json');
+const commentCreatedCardTemplate        = require('../cards/commentCreatedCard.json');
 
 const buildDialog = function( title, size, card ) {
     let dialog = {
@@ -54,21 +56,51 @@ async function updateOrCreate (model, where, newItem) {
     return {item, created: false};
 }
 
+const handleDestroySubscriptionAction = (config, submitData, cardData) => {
+    const promise = new Promise( (resolve, reject) => {
+	EventSubscriptions.destroy({ "where": { 'botId': submitData.botId, 'groupId': submitData.groupId, 'eventType': 'ticket'	} })
+	const template = new Template(subscriptionDeletedCardTemplate);
+	const card = template.expand({ $root: cardData });
+	resolve( card )
+    })
+    return promise
+}
+
+const handlePostCommentAction = (config, submitData, cardData) => {
+    console.log(`Posting a comment for ${submitData.ticketId}: ${submitData.comment_text}`)
+    const promise = new Promise( (resolve, reject) => {
+	// TODO - I need to prompt the user to connect their account
+	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
+	zendesk.tickets.update( submitData.ticketId, {
+	    "ticket": {
+		"comment": {
+		    "body": submitData.comment_text
+		}
+	    }
+	}).then( ticket => {
+	    const template = new Template(commentCreatedCardTemplate);
+	    const card = template.expand({ $root: cardData });
+	    resolve( card )
+	}).catch( err => {
+	    console.log("Error posting comment:", err)
+	})
+    })
+    return promise
+}
+
 const handleCreateSubscriptionAction = (config, submitData, cardData) => {
     const promise = new Promise( (resolve, reject) => {
 	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
-
-	console.log(`MESSAGING: creating subscription for new tickets`)
-	//let hookQs     = `groupId=${submitData.groupId}&botId=${submitData.botId}`
-	//let buff       = new Buffer(hookQs)
-	//let buffe      = buff.toString('base64')
-        //let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${buffe}`
         let webhookUrl = `${process.env.RINGCENTRAL_CHATBOT_SERVER}/zendesk/webhook/${submitData.botId}`
 	cardData['webhookUrl'] = webhookUrl
-
+	let trigger_where = {
+	    'botId': submitData.botId, 'groupId': submitData.groupId, 'eventType': 'ticket'
+	}
+	console.log('Creating event subscription:', trigger_where)
 	if (config.zendesk_webhook_id) {
-	    console.log('Webhook has already been created, so there is no need to create one.')
-	    const template = new Template(subscriptionExistsCardTemplate);
+	    console.log('Zendesk webhook has already been created, so there is no need to create one.')
+	    EventSubscriptions.create( trigger_where )
+	    const template = new Template(subscriptionCreatedCardTemplate);
 	    const card = template.expand({ $root: cardData });
 	    resolve( card )
 	} else {
@@ -106,14 +138,11 @@ const handleCreateSubscriptionAction = (config, submitData, cardData) => {
 		// trigger created
 		console.log(`Zendesk trigger created: ${trigger.id}`)
 		config.zendesk_trigger_id = trigger.id.toString()
-		let where = {
-		    'botId': submitData.botId, 'groupId': submitData.groupId, 'eventType': 'ticket'
-		}
-		console.log('Saving event subscription:', where)
-		return EventSubscriptions.findOne({ "where": where })
+		console.log('Saving event subscription:', trigger_where)
+		return EventSubscriptions.findOne({ "where": trigger_where })
 	    }).then( subscription => {
 		if (!subscription) {
-		    subscription = EventSubscriptions.create( where )
+		    EventSubscriptions.create( trigger_where )
 		} else {
 		    // TODO post differentiated message for a subscription that has already been made
 		}
@@ -163,7 +192,7 @@ const interactiveMessageHandler = async (req,res) => {
     }
     //console.log(`cardData=`,cardData)
     let botConfig = await BotConfig.findOne({
-        where: { 'botId': submitData.botId, 'groupId': submitData.groupId }
+        where: { 'botId': submitData.botId }
     })
     // if you have gotten this far, this means that the bot is fully setup, and an zendesk domain has
     // been stored for the bot. That means we can make calls to Zendesk. So, load the token and proceed.
@@ -173,7 +202,7 @@ const interactiveMessageHandler = async (req,res) => {
 	    console.log("DEBUG: botConfig is not set. Initializing...")
             botConfig = await BotConfig.create({
 		'botId': submitData.botId,
-		'groupId': submitData.groupId,
+		//'groupId': submitData.groupId,
 		'zendesk_domain': submitData.zendesk_domain
 		// there is no token yet, so don't store it, just store the domain
 	    })
@@ -206,7 +235,11 @@ const interactiveMessageHandler = async (req,res) => {
     }
     case 'disconnect': {
         if (botConfig) {
+	    // TODO - should I delete webhooks?
+	    // TODO - should I delete triggers?
 	    console.log("DEBUG: destroying tokens in database")
+	    const zendesk = getZendeskClient( botConfig.zendesk_domain, botConfig.token )
+	    zendesk.oauthtokens.revoke( botConfig.token )
 	    botConfig.destroy().then( () => {
 		bot.sendMessage(submitData.groupId, {
 		    text: `You have just unlinked your Zendesk account. Say "hello" to me, and we can start fresh.`
@@ -220,15 +253,55 @@ const interactiveMessageHandler = async (req,res) => {
 	break
     }
     case 'subscribe': {
-	let card = await handleCreateSubscriptionAction( botConfig, submitData, cardData )
-	if (card) {
-	    console.log(`DEBUG: subscription created, posting card to group ${submitData.groupId}:`, card)
+	let trigger_where = {
+	    'botId': submitData.botId, 'groupId': submitData.groupId, 'eventType': 'ticket'
+	}
+	const sub_exists = await EventSubscriptions.findOne( { "where": trigger_where } )
+	if (sub_exists) {
+	    console.log('Subscription already exists.');
+	    const template = new Template(subscriptionExistsCardTemplate);
+	    const card = template.expand({ $root: cardData });
 	    let dialog = buildDialog('Setting up Zendesk','Small', card)
 	    res.status(200);
 	    res.setHeader('Content-Type', 'application/json');
 	    res.end(JSON.stringify(dialog))
 	} else {
+	    let card = await handleCreateSubscriptionAction( botConfig, submitData, cardData )
+	    if (card) {
+		console.log(`DEBUG: subscription created, posting card to group ${submitData.groupId}:`, card)
+		let dialog = buildDialog('Setting up Zendesk','Small', card)
+		res.status(200);
+		res.setHeader('Content-Type', 'application/json');
+		res.end(JSON.stringify(dialog))
+	    } else {
+		console.log("Returned from handleCreateSubscription with no card. Do nothing.")
+	    }
+	}
+	break
+    }
+    case 'unsubscribe': {
+	let card = await handleDestroySubscriptionAction( botConfig, submitData, cardData )
+	if (card) {
+	    console.log(`DEBUG: subscription created, posting card to group ${submitData.groupId}:`, card)
+	    let dialog = buildDialog('Unsubscribed','Small', card)
+	    res.status(200);
+	    res.setHeader('Content-Type', 'application/json');
+	    res.end(JSON.stringify(dialog))
+	} else {
 	    console.log("Returned from handleCreateSubscription with no card. Do nothing.")
+	}
+	break
+    }
+    case 'post_comment': {
+	let card = await handlePostCommentAction( botConfig, submitData, cardData )
+	if (card) {
+	    console.log(`DEBUG: comment posted, posting card to group ${submitData.groupId}:`, card)
+	    let dialog = buildDialog('Comment posted','Small', card)
+	    res.status(200);
+	    res.setHeader('Content-Type', 'application/json');
+	    res.end(JSON.stringify(dialog))
+	} else {
+	    console.log("Returned from handlePostComment with no card. Do nothing.")
 	}
 	break
     }

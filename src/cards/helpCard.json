@@ -18,7 +18,22 @@
                     "type": "TextBlock",
                     "text": "Below are the things I can help you with. Go ahead, click them, they're buttons.",
                     "wrap": true
-                }
+                },
+		{
+		    "type": "ActionSet",
+		    "actions": [
+			{
+			    "type": "Action.Submit",
+			    "title": "Disconnect from Zendesk",
+			    "style": "destructive",
+			    "data": {
+				"actionType": "disconnect",
+				"botId": "${botId}",
+				"groupId": "${groupId}"
+			    }
+			}
+		    ]
+		}
             ]
         },
         {
@@ -36,44 +51,48 @@
                     "type": "TextBlock",
                     "text": "There are a number of things I can do to assist you in using Zendesk. Sadly, I can't do any of them until we login to Zendesk.",
                     "wrap": true
-                }
+                },
+		{
+		    "type": "ActionSet",
+		    "actions": [
+			{
+			    "type": "Action.Submit",
+			    "title": "Connect to Zendesk",
+			    "style": "positive",
+			    "data": {
+				"actionType": "hello",
+				"botId": "${botId}",
+				"groupId": "${groupId}"
+			    }
+			}
+		    ]
+		}
             ]
         },
         {
             "type": "ActionSet",
-            "isVisible": "${if(connectedToZendesk,false,true)}",
+            "isVisible": "${if(subscribedToEvents,false,true)}",
             "actions": [
                 {
                     "type": "Action.Submit",
-                    "title": "Connect to Zendesk",
-                    "style": "positive",
-                    "data": {
-                        "actionType": "hello",
-                        "botId": "${botId}",
-                        "groupId": "${groupId}"
-                    }
-                }
-            ]
-        },
-        {
-            "type": "ActionSet",
-            "isVisible": "${if(connectedToZendesk,true,false)}",
-            "actions": [
-                {
-                    "type": "Action.Submit",
-                    "title": "Help you subscribe to events",
+                    "title": "Subscribe to new ticket notifications",
                     "data": {
                         "actionType": "subscribe",
                         "botId": "${botId}",
                         "groupId": "${groupId}"
                     }
-                },
+                }
+            ]
+        },
+        {
+            "type": "ActionSet",
+            "isVisible": "${if(subscribedToEvents,true,false)}",
+            "actions": [
                 {
                     "type": "Action.Submit",
-                    "title": "Disconnect from Zendesk",
-                    "style": "destructive",
+                    "title": "Unsubscribe from new ticket notifications",
                     "data": {
-                        "actionType": "disconnect",
+                        "actionType": "unsubscribe",
                         "botId": "${botId}",
                         "groupId": "${groupId}"
                     }

@@ -1,0 +1,12 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "You will no longer receive new ticket notifications in this chat.",
+            "wrap": true
+        }
+    ]
+}

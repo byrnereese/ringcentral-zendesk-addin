@@ -1,4 +1,5 @@
 const { BotConfig }               = require('../models/models')
+const { EventSubscriptions }      = require('../models/models')
 const { getZendeskClient, loadTicket, getZendeskUrls } = require('../lib/zendesk');
 const { continueSession }         = require('pg/lib/sasl');
 const { Template }                = require('adaptivecards-templating');
@@ -41,11 +42,28 @@ const handleBotDelete = async event => {
     let botId = message.body.extensionId
     console.log("DEBUG: cleaning up for bot:", botId)
 
-    // TODO - load zendesk client
-    // TODO - delete webhook
-    // TODO - delete trigger
+    let config  = await BotConfig.findOne( { where: { "botId": botId } })
+    let token   = botConfig ? botConfig.token : undefined
+    let zendesk = getZendeskClient(config.zendesk_domain, token)
+    if (config.zendesk_webhook_id) {
+	console.log(`Rolling back webhook: ${config.zendesk_webhook_id}`)
+	zendesk.webhooks.delete( config.zendesk_webhook_id, function (err, req, result) {
+	    console.log(`Garbage collected webhook: ${config.zendesk_webhook_id}`)
+	})
+	config.zendesk_webhook_id = undefined
+    }
+    if (config.zendesk_trigger_id) {
+	console.log(`Rolling back trigger: ${config.zendesk_trigger_id}`)
+	zendesk.triggers.delete( config.zendesk_trigger_id, function (err, req, result) {
+	    console.log(`Garbage collected trigger: ${config.zendesk_trigger_id}`)
+	})
+	config.zendesk_trigger_id = undefined
+    }
     
     await BotConfig.destroy({
+        where: { 'botId': message.body.extensionId }
+    })
+    await EventSubscriptions.destroy({
         where: { 'botId': message.body.extensionId }
     })
 }
@@ -118,16 +136,16 @@ const unfurl = async ( botConfig, obj_type, obj_id ) => {
 const handleMessage = async event => {
     const { group, bot, text, userId } = event
     const botConfig = await BotConfig.findOne({
-        where: { 'botId': bot.id, 'groupId': group.id }
+        where: { 'botId': bot.id }
     })
     let urls = getZendeskUrls( text )
     for (url of urls) {
 	let domain    = url[1]
 	let obj_type  = url[2]
 	let obj_id    = url[3]
-	const botConfig = await BotConfig.findOne({
-	    where: { 'zendesk_domain': domain, 'groupId': group.id }
-	})
+	//const botConfig = await BotConfig.findOne({
+	//    where: { 'zendesk_domain': domain, 'groupId': group.id }
+	//})
 	if (botConfig) {
     	    unfurl( botConfig, obj_type, obj_id ).then( card => {
 		if (card) {
@@ -142,7 +160,7 @@ const handleMessage = async event => {
 const handleBotMessage = async event => {
     const { group, bot, text, userId } = event
     const botConfig = await BotConfig.findOne({
-        where: { 'botId': bot.id, 'groupId': group.id }
+        where: { 'botId': bot.id }
     })
     console.log( "Message received: ", event.message.text )
     let command = text.split(' ')[0].toLowerCase()
@@ -154,10 +172,12 @@ const handleBotMessage = async event => {
     
     if (text === "help") {
 	const template = new Template(helpCardTemplate);
+	const sub = await EventSubscriptions.findOne( { "where": { "botId": bot.id, "groupId": group.id, "eventType": "ticket" } } )
 	const cardData = {
 	    'botId': bot.id,
 	    'groupId': group.id,
-	    'connectedToZendesk': (botConfig && botConfig.token ? true : false)
+	    'connectedToZendesk': (botConfig && botConfig.token ? true : false),
+	    'subscribedToEvents': (sub ? true : false)
 	};
 	const card = template.expand({ $root: cardData });
 	await bot.sendAdaptiveCard( group.id, card);
