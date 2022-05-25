@@ -23,22 +23,48 @@
             "wrap": true
         },
         {
-            "type": "FactSet",
-            "facts": [
+            "type": "ColumnSet",
+            "columns": [
                 {
-                    "title": "Created by",
-                    "value": "${ticket.requestor.name}"
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                        {
+                            "type": "FactSet",
+                            "facts": [
+                                {
+                                    "title": "Priority",
+                                    "value": "${ticket.priority}"
+                                },
+                                {
+                                    "title": "Status",
+                                    "value": "${ticket.status}"
+                                }
+                            ]
+                        }
+                    ]
                 },
                 {
-                    "title": "Created on",
-                    "value": "${ticket.created_at_fmt}"
-                },
-                {
-                    "title": "Status",
-                    "value": "${ticket.status}"
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                        {
+                            "type": "FactSet",
+                            "facts": [
+                                {
+                                    "title": "Created by",
+                                    "value": "${ticket.requestor.name}"
+                                },
+                                {
+                                    "title": "Created on",
+                                    "value": "${ticket.created_at_fmt}"
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
-        },        
+        },
         {
             "type": "ActionSet",
             "actions": [

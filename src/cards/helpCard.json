@@ -98,6 +98,20 @@
                     }
                 }
             ]
+        },
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.Submit",
+                    "title": "Create ticket",
+                    "data": {
+                        "actionType": "ticket_form",
+                        "botId": "${botId}",
+                        "groupId": "${groupId}"
+                    }
+                }
+            ]
         }
     ]
 }

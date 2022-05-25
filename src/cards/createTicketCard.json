@@ -1,0 +1,66 @@
+{
+    "type": "AdaptiveCard",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Use the form below to create a ticket in Zendesk.",
+            "wrap": true
+        },
+        {
+	    "id": "ticket_subject",
+            "type": "Input.Text",
+            "placeholder": "Enter a summary of the ticket",
+            "label": "Subject",
+            "isRequired": true
+        },
+        {
+	        "id": "ticket_description",
+            "type": "Input.Text",
+            "placeholder": "Enter a detailed description.",
+            "isMultiline": true,
+            "label": "Description",
+            "isRequired": true
+        },
+        {
+            "type": "Input.ChoiceSet",
+            "choices": [
+                {
+                    "title": "Urgent",
+                    "value": "urgent"
+                },
+                {
+                    "title": "High",
+                    "value": "high"
+                },
+                {
+                    "title": "Normal",
+                    "value": "normal"
+                },
+                {
+                    "title": "Low",
+                    "value": "low"
+                }
+            ],
+            "placeholder": "Select a priority",
+            "id": "ticket_priority",
+            "label": "Priority",
+            "value": "normal",
+            "isRequired": true
+        }        
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "Create ticket",
+            "style": "positive",
+            "data": {
+                "actionType": "create_ticket",
+                "botId": "${botId}",
+                "groupId": "${groupId}"
+            }
+
+        }
+    ],
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5"
+}

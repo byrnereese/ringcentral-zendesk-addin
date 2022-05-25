@@ -9,6 +9,8 @@ const subscriptionExistsCardTemplate    = require('../cards/subscriptionExistsCa
 const subscriptionDeletedCardTemplate   = require('../cards/subscriptionDeletedCard.json');
 const subscriptionCreatedCardTemplate   = require('../cards/subscribedCard.json');
 const commentCreatedCardTemplate        = require('../cards/commentCreatedCard.json');
+const createTicketCardTemplate          = require('../cards/createTicketCard.json');
+const ticketCreatedCardTemplate         = require('../cards/ticketCreatedCard.json');
 
 const buildDialog = function( title, size, card ) {
     let dialog = {
@@ -83,6 +85,30 @@ const handlePostCommentAction = (config, submitData, cardData) => {
 	    resolve( card )
 	}).catch( err => {
 	    console.log("Error posting comment:", err)
+	})
+    })
+    return promise
+}
+
+const handleCreateTicketAction = (config, submitData, cardData) => {
+    console.log(`Creating a ticket: ${submitData.ticket_subject}`)
+    const promise = new Promise( (resolve, reject) => {
+	// TODO - I need to prompt the user to connect their account
+	const zendesk = getZendeskClient( config.zendesk_domain, config.token )
+	zendesk.tickets.create( {
+	    "ticket": {
+		"subject": submitData.ticket_subject,
+		"priority": submitData.ticket_priority,
+		"comment": {
+		    "body": submitData.ticket_description
+		}
+	    }
+	}).then( ticket => {
+	    const template = new Template(ticketCreatedCardTemplate);
+	    const card = template.expand({ $root: cardData });
+	    resolve( card )
+	}).catch( err => {
+	    console.log("Error creating ticket:", err)
 	})
     })
     return promise
@@ -302,6 +328,31 @@ const interactiveMessageHandler = async (req,res) => {
 	    res.end(JSON.stringify(dialog))
 	} else {
 	    console.log("Returned from handlePostComment with no card. Do nothing.")
+	}
+	break
+    }
+    case 'ticket_form': {
+	console.log("Displaying create ticket form")
+	const template = new Template(createTicketCardTemplate);
+	const card = template.expand({ $root: cardData });
+	console.log( JSON.stringify(card) )
+	let dialog = buildDialog('Create ticket','Small', card)
+	res.status(200);
+	res.setHeader('Content-Type', 'application/json');
+	res.end(JSON.stringify(dialog))
+	break
+    }
+    case 'create_ticket': {
+	console.log("Creating zendesk ticket")
+	let card = await handleCreateTicketAction( botConfig, submitData, cardData )
+	if (card) {
+	    console.log(`DEBUG: ticket created, posting card to group ${submitData.groupId}:`, card)
+	    let dialog = buildDialog('Ticket created','Small', card)
+	    res.status(200);
+	    res.setHeader('Content-Type', 'application/json');
+	    res.end(JSON.stringify(dialog))
+	} else {
+	    console.log("Returned from handleCreateTicket with no card. Do nothing.")
 	}
 	break
     }
