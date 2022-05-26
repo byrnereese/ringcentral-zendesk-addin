@@ -46,21 +46,6 @@ const zendeskWebhookHandler = async (req, res) => {
         return
     }
     console.log(`Received webhook for bot ${botId} and ticket ${req.body.ticket_id}`)
-
-    /*
-      idea.idea.created_at_fmt = new Date( idea.idea.created_at ).toDateString()
-      if (idea.idea.created_by_user) {
-      cardData['created_by'] = idea.idea.created_by_user
-      } if (idea.idea.created_by_portal_user) {
-      cardData['created_by'] = idea.idea.created_by_portal_user
-      } else if (idea.idea.created_by_idea_user) {
-      cardData['created_by'] = idea.idea.created_by_idea_user
-      }
-      if (!cardData['created_by']['avatar_url']) {
-      cardData['created_by']['avatar_url'] = gravatar.url(cardData['created_by'].email);
-      }
-      cardData['idea'] = idea.idea
-    */
     const bot = await Bot.findByPk(botId)
     const template = new Template(ticketCardTemplate);
     let cardData = {}
@@ -78,6 +63,7 @@ const zendeskWebhookHandler = async (req, res) => {
 		console.log("Found ticket: ", ticket)
 		ticket.created_at_fmt = new Date( ticket.created_at ).toDateString()
 		cardData['zendeskUrl'] = `https://${botConfig.zendesk_domain}.zendesk.com/agent/tickets/${req.body.ticket_id}` 
+		if (ticket.priority == "null") { ticket.priority = "" }
 		cardData['ticket'] = ticket
 		cardData['ticketId'] = ticket.id
 		cardData['card'] = {
