@@ -4,7 +4,6 @@
     "repository": "",
     "keywords": ["node", "express", "zendesk", "ringcentral add-in", "bot"],
     "addons": [
-	"heroku-redis",
 	{
             "plan": "heroku-postgresql"
 	}
@@ -16,7 +15,7 @@
       },
       "RINGCENTRAL_SERVER": {
         "description": "RingCentral platform server url",
-        "value": "https://platform.devtest.ringcentral.com"
+        "value": "https://platform.ringcentral.com"
       },
       "RINGCENTRAL_CHATBOT_DATABASE_CONNECTION_URI": {
         "description": "Database uri. Leave this default for the 1st deployment and copy DATABASE_URL value to here right after.",
@@ -42,11 +41,11 @@
         "description": "Bot admin password",
         "value": "admin"
       },
-      "ZD_CLIENT_ID": {
-        "description": "Zendesk Client Id",
+      "ZENDESK_CLIENT_ID": {
+        "description": "Zendesk Client ID",
         "value": ""
       },
-      "ZD_CLIENT_SECRET": {
+      "ZENDESK_CLIENT_SECRET": {
         "description": "Zendesk Client Secret",
         "value": ""
       },
