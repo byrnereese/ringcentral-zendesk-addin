@@ -11,6 +11,7 @@ const subscriptionCreatedCardTemplate   = require('../cards/subscribedCard.json'
 const commentCreatedCardTemplate        = require('../cards/commentCreatedCard.json');
 const createTicketCardTemplate          = require('../cards/createTicketCard.json');
 const ticketCreatedCardTemplate         = require('../cards/ticketCreatedCard.json');
+const analytics							= require('../lib/analytics');
 
 const buildDialog = function( title, size, card ) {
     let dialog = {
@@ -207,6 +208,9 @@ const interactiveMessageHandler = async (req,res) => {
     const submitData = req.body.data;
     const cardId     = req.body.card.id;
     const bot        = await Bot.findByPk(submitData.botId); 
+	const user		 = req.body.user;
+	analytics.identify({rcAccountId: user.accountId, extensionId: user.extId});
+	analytics.group({rcAccountId: user.accountId, extensionId: user.extId});
     // TODO - we have the cardId, so let's replace cards as we go through flows
     
     // If I am authing for the first time, I need to stash the zendesk domain and create
@@ -214,7 +218,7 @@ const interactiveMessageHandler = async (req,res) => {
     let cardData = {
         'botId': submitData.botId,
         'groupId': submitData.groupId,
-	'userId': req.body.user.id
+		'userId': user.id
     }
     //console.log(`cardData=`,cardData)
     let botConfig = await BotConfig.findOne({
@@ -240,9 +244,11 @@ const interactiveMessageHandler = async (req,res) => {
 	}
 	handleAuthAction( botConfig, cardData ).then( card => {
 	    console.log(`DEBUG: posting auth dialog:`, card)
+		analytics.trackZendeskDomainRegistration({extensionId: user.extId, rcAccountId: user.accountId});
 	    let dialog = buildDialog('Connect to Zendesk','Medium', card)
 	    res.setHeader('Content-Type', 'application/json');
 	    res.end(JSON.stringify(dialog))
+		analytics.trackPage({extensionId: user.extId, rcAccountId: user.accountId, name:'Auth Page'});
 	    //console.log(`DEBUG: sending auth card:`, card)
 	    //bot.sendAdaptiveCard( submitData.groupId, card);
 	})
