@@ -2,12 +2,12 @@ const { Analytics } = require('@segment/analytics-node')
 const crypto = require('crypto');
 // TODO: fill with your hash key
 function getHash(input) {
-    return crypto.createHash('sha256').update(input).digest('hex');
+    return crypto.createHash('sha256', '<hash-key>').update(input).digest('hex');
 }
 
 // instantiation
 // TODO: fill with your Segment key
-const analytics = new Analytics({ writeKey: 'xlXnHES4XlHyloBQnzSDGRvq8axDmoi8' })
+const analytics = new Analytics({ writeKey: '<segment-key>' })
 
 const appName = 'RingCentral Zendesk Add-In';
 const version = '0.0.1';
@@ -58,13 +58,14 @@ function track(userId, event, properties = {}) {
     });
 }
 
-exports.trackPage = function page({ extensionId, rcAccountId, category, properties = {} }) {
+exports.trackPage = function page({ extensionId, rcAccountId, name, properties = {} }) {
     analytics.page({
         userId: getHash(extensionId),
-        category,
+        name,
         properties: {
             appName: appName,
             version,
+            rcAccountId,
             ...properties,
         },
         integrations: {

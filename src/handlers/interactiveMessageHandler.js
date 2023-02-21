@@ -248,7 +248,7 @@ const interactiveMessageHandler = async (req,res) => {
 	    let dialog = buildDialog('Connect to Zendesk','Medium', card)
 	    res.setHeader('Content-Type', 'application/json');
 	    res.end(JSON.stringify(dialog))
-		analytics.trackPage({extensionId: user.extId, rcAccountId: user.accountId, category:'Auth Page'});
+		analytics.trackPage({extensionId: user.extId, rcAccountId: user.accountId, name:'Auth Page'});
 	    //console.log(`DEBUG: sending auth card:`, card)
 	    //bot.sendAdaptiveCard( submitData.groupId, card);
 	})
